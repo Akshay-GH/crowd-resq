@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+node_modules/
+.next/
+output/
+pnpm-lock.yaml
+*.mp4
+.env
