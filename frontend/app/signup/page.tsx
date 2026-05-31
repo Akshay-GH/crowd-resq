@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function SignUp() {
   const router = useRouter();
@@ -23,7 +22,6 @@ export default function SignUp() {
     name: "",
     email: "",
     password: "",
-    role: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -31,10 +29,6 @@ export default function SignUp() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleRoleChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, role: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,30 +61,15 @@ export default function SignUp() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden">
-      {/* Background Video */}
-      <video
-        autoPlay
-        muted
-        loop
-        className="absolute inset-0 h-full w-full object-cover z-0"
-      >
-        <source src="/videos/bg.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
-
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50 z-10" />
-
-      {/* Sign-up Content */}
-      <div className="relative z-20 flex min-h-screen flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <Card className="bg-white/90 dark:bg-gray-900/80 backdrop-blur-md shadow-lg">
+    <div className="min-h-screen w-full bg-neutral-100">
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Card className="bg-white shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl text-center">
+              <CardTitle className="text-center text-2xl text-neutral-950">
                 Create an Account
               </CardTitle>
-              <CardDescription className="text-center">
+              <CardDescription className="text-center text-neutral-600">
                 Enter your information to sign up
               </CardDescription>
             </CardHeader>
@@ -102,7 +81,7 @@ export default function SignUp() {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name" className="text-neutral-700">Full Name</Label>
                   <Input
                     id="name"
                     name="name"
@@ -114,7 +93,7 @@ export default function SignUp() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-neutral-700">Email</Label>
                   <Input
                     id="email"
                     name="email"
@@ -127,7 +106,7 @@ export default function SignUp() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-neutral-700">Password</Label>
                   <Input
                     id="password"
                     name="password"
@@ -139,30 +118,8 @@ export default function SignUp() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>I am a:</Label>
-                  <RadioGroup
-                    defaultValue="student"
-                    value={formData.role}
-                    onValueChange={handleRoleChange}
-                    className="flex flex-col space-y-1"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="student" id="student" />
-                      <Label htmlFor="student">Student</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="SecurityGuard"
-                        id="SecurityGuard"
-                      />
-                      <Label htmlFor="SecurityGuard">Security Guard</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="ambulance" id="ambulance" />
-                      <Label htmlFor="ambulance">Ambulance Service</Label>
-                    </div>
-                  </RadioGroup>
+                <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-600">
+                  This account will access the event authority control room.
                 </div>
               </CardContent>
 

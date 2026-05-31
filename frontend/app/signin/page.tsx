@@ -48,8 +48,7 @@ export default function SignIn() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to the appropriate dashboard based on role
-        router.push(`/dashboard/${data.user.role}`);
+        router.push("/dashboard/control");
       } else {
         setError(data.message || "Signin failed");
       }
@@ -62,28 +61,13 @@ export default function SignIn() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden">
-      {/* Background Video */}
-      <video
-        autoPlay
-        muted
-        loop
-        className="absolute inset-0 h-full w-full object-cover z-0"
-      >
-        <source src="/videos/bg.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
-
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50 z-10" />
-
-      {/* Sign-in Content */}
-      <div className="relative z-20 flex min-h-screen flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <Card className="bg-white/90 dark:bg-gray-900/80 backdrop-blur-md shadow-lg">
+    <div className="min-h-screen w-full bg-neutral-100">
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Card className="bg-white shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl text-center">Sign In</CardTitle>
-              <CardDescription className="text-center">
+              <CardTitle className="text-center text-2xl text-neutral-950">Sign In</CardTitle>
+              <CardDescription className="text-center text-neutral-600">
                 Enter your credentials to access your account
               </CardDescription>
             </CardHeader>
@@ -95,7 +79,7 @@ export default function SignIn() {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-neutral-700">Email</Label>
                   <Input
                     id="email"
                     name="email"
@@ -108,7 +92,7 @@ export default function SignIn() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-neutral-700">Password</Label>
                   <Input
                     id="password"
                     name="password"
