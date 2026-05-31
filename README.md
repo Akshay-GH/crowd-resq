@@ -2,6 +2,15 @@
 
 CrowdResQ is a local AI-assisted event crowd monitoring system. It reads a fixed live camera feed, detects and tracks people, estimates density and movement risk, and alerts the event authority when stampede risk becomes high.
 
+**Screenshots**
+
+![Signin](demo/signin.png)
+![Signup](demo/signup.png)
+
+## Demo
+
+<video src="demo/Screen%20Recording%202026-06-01%20020151.mp4" controls></video>
+
 ## What It Does
 
 - Shows raw and AI-processed live feeds in one authority dashboard.
@@ -12,12 +21,12 @@ CrowdResQ is a local AI-assisted event crowd monitoring system. It reads a fixed
 
 ## Tech Stack
 
-| Layer | Stack |
-| --- | --- |
-| Frontend | Next.js, React, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
-| Backend | FastAPI, Uvicorn, OpenCV, Ultralytics YOLO, NumPy |
-| Auth | JWT cookie auth through Next.js API routes |
-| Storage | MongoDB for users, JSON files for scene setup and local alerts |
+| Layer    | Stack                                                          |
+| -------- | -------------------------------------------------------------- |
+| Frontend | Next.js, React, TypeScript, Tailwind CSS, shadcn/ui, Recharts  |
+| Backend  | FastAPI, Uvicorn, OpenCV, Ultralytics YOLO, NumPy              |
+| Auth     | JWT cookie auth through Next.js API routes                     |
+| Storage  | MongoDB for users, JSON files for scene setup and local alerts |
 
 ## Project Structure
 
