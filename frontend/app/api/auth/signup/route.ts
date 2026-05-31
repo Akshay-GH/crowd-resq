@@ -6,20 +6,15 @@ export async function POST(request: Request) {
   await connectDB();
 
   try {
-    const { name, email, password, role } = await request.json();
+    const { name, email, password } = await request.json();
+    const role = "authority";
 
     // Validate required fields
-    if (!name || !email || !password || !role) {
+    if (!name || !email || !password) {
       return NextResponse.json(
         { message: "All fields are required" },
         { status: 400 },
       );
-    }
-
-    // Validate role
-    const validRoles = ["student", "SecurityGuard", "ambulance"];
-    if (!validRoles.includes(role)) {
-      return NextResponse.json({ message: "Invalid role" }, { status: 400 });
     }
 
     const existingUser = await User.findOne({ email });

@@ -1,31 +1,30 @@
-import type React from "react"
-import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/theme-provider"
-import "./globals.css"
-
-const inter = Inter({ subsets: ["latin"] })
+import type React from "react";
+import { ThemeProvider } from "@/components/theme-provider";
+import "./globals.css";
 
 export const metadata = {
-  title: "Emergency Response System",
-  description: "A platform for students, teachers, and ambulance services",
-    generator: 'v0.dev'
-}
+  title: "CrowdResQ Control",
+  description: "AI-assisted event crowd monitoring and stampede-risk alerts",
+  generator: "v0.dev",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <body>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
           {children}
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }
-
-
-import './globals.css'

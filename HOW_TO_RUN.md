@@ -1,206 +1,190 @@
-# CrowdResQ — Local Setup Guide
+# CrowdResQ Local Test Guide
 
 ## Prerequisites
 
-| Tool    | Version                | Download                         |
-| ------- | ---------------------- | -------------------------------- |
-| Node.js | 18+                    | https://nodejs.org               |
-| pnpm    | 8+                     | `npm install -g pnpm`            |
-| Python  | 3.10 – 3.11            | https://www.python.org/downloads |
-| MongoDB | Atlas (cloud) or local | https://www.mongodb.com/atlas    |
-| Git     | any                    | https://git-scm.com              |
+- Node.js 18+
+- Python 3.10 or 3.11
+- MongoDB connection string, local or Atlas
+- A webcam or fixed USB/IP camera available to OpenCV
 
----
+## 1. Backend Setup
 
-## Project Structure
+Open a terminal:
 
-```
-crowd-resq-updated/
-├── crowd-management-/          ← Next.js frontend (port 3000)
-├── backend-final/
-│   └── crowd-management-small-model/
-│       ├── app.py              ← FastAPI MJPEG streaming server (port 8000)
-│       ├── y_h_A.py            ← YOLO + Heatmap + A* processor (writes shared JPGs)
-│       ├── yolov5s.pt          ← YOLOv5 model weights
-│       └── dataset/test_video/ ← Sample test videos
-└── HOW_TO_RUN.md               ← This file
-```
-
----
-
-## Step 1 — Clone / Open the Project
-
-```bash
-cd "D:\cohort web dev\projects\next-projects\crowd-resq-updated"
-```
-
----
-
-## Step 2 — Setup the Next.js Frontend
-
-### 2.1 Install dependencies
-
-```bash
-cd crowd-management-
-pnpm install
-```
-
-### 2.2 Configure environment variables
-
-Create a `.env` file in the `crowd-management-/` folder (if not already present):
-
-```env
-DB_URL=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/crowdResqDB
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-```
-
-> Replace `<username>`, `<password>`, and `<cluster>` with your MongoDB Atlas credentials.
-
-### 2.3 Start the frontend dev server
-
-```bash
-pnpm dev
-```
-
-Frontend will be available at: **http://localhost:3000**
-
----
-
-## Step 3 — Setup the Python Backend (FastAPI)
-
-### 3.1 Navigate to the backend folder
-
-```bash
-cd backend-final/crowd-management-small-model
-```
-
-### 3.2 Create a virtual environment (recommended)
-
-```bash
+```powershell
+cd D:\resumes\projects\crowd-resq\backend
 python -m venv venv
-```
-
-Activate it:
-
-- **Windows (PowerShell):**
-  ```powershell
-  .\venv\Scripts\Activate.ps1
-  ```
-- **Windows (CMD):**
-  ```cmd
-  venv\Scripts\activate.bat
-  ```
-- **macOS / Linux:**
-  ```bash
-  source venv/bin/activate
-  ```
-
-### 3.3 Install Python dependencies
-
-```bash
-pip install fastapi uvicorn python-multipart ultralytics opencv-python numpy
-```
-
-### 3.4 Start the FastAPI server
-
-```bash
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-> ⚠️ **Common mistake:** Do NOT include `.py` in the command.  
-> ❌ `python -m uvicorn app.py:app` → Error  
-> ✅ `python -m uvicorn app:app` → Correct
+If you already installed dependencies before this project update, run this once:
 
-> ⚠️ **Make sure your terminal is inside the `backend-final/crowd-management-small-model/` directory** before running this command.
-
-Backend will be available at: **http://localhost:8000**  
-Swagger docs at: **http://localhost:8000/docs**
-
----
-
-## Step 4 — Run the YOLO Processor (y_h_A.py)
-
-This script captures video (webcam or file), runs YOLO detection, generates heatmaps with A\* pathfinding, and writes shared JPG frames that the FastAPI server serves as MJPEG streams.
-
-### 4.1 Open a new terminal and navigate to the backend folder
-
-```bash
-cd backend-final/crowd-management-small-model
+```powershell
+pip install -r requirements.txt
 ```
 
-Activate the virtual environment (same as Step 3.2).
+This installs the WebSocket support needed by `/ws/risk`.
 
-### 4.2 Run the processor
+The backend uses `yolo26n.pt` by default. The first detection run may download the model once through Ultralytics. To choose another compatible Ultralytics model, set `CROWD_MODEL` before starting the backend:
 
-```bash
-python y_h_A.py
+```powershell
+$env:CROWD_MODEL="yolo11n.pt"
+python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 4.3 Follow the interactive prompts
+Check the backend:
 
-1. **Select input source:**
-   - Enter `1` for **Webcam**
-   - Enter `2` for **Video file** — then provide a path, e.g.:
-     ```
-     dataset/test_video/contentvideo.mp4
-     ```
-
-2. **Select a frame:** Press `s` to select a clear frame, `d` to skip, `q` to quit.
-
-3. **Click 4 ground points:** Click 4 floor corners in the displayed window for homography calibration, then press any key.
-
-4. Processing begins — the script writes `shared_raw.jpg` and `shared_processed.jpg` to the `output/` folder continuously.
-
-### Available test videos
-
-```
-dataset/test_video/
-├── contentvideo.mp4
-├── People Walking Free Stock Footage, Royalty-Free No Copyright Content.mp4
-├── People Walking Inside Shopping Mall Stock Footage.mp4
-├── pexels-timo-volz-5544073 (1080p).mp4
-└── The CCTV People Demo 2.mp4
+```text
+http://localhost:8000/health
+http://localhost:8000/docs
 ```
 
----
+Expected `/health` before starting the camera:
 
-## Step 5 — Open the Application
+```json
+{
+  "ok": true,
+  "running": false
+}
+```
 
-Once all three services are running, open your browser:
+## 2. Frontend Setup
 
-| Page               | URL                                           | Description                                |
-| ------------------ | --------------------------------------------- | ------------------------------------------ |
-| Home / Landing     | http://localhost:3000                         | Landing page                               |
-| Sign In            | http://localhost:3000/signin                  | Login page                                 |
-| Sign Up            | http://localhost:3000/signup                  | Registration page                          |
-| Security Guard     | http://localhost:3000/dashboard/SecurityGuard | Raw + AI-processed live feeds, crowd stats |
-| Ambulance          | http://localhost:3000/dashboard/ambulance     | AI-processed feed with evacuation path     |
-| Student            | http://localhost:3000/dashboard/student       | Emergency alerts & messaging               |
-| API Health Check   | http://localhost:8000/health                  | Backend health endpoint                    |
-| API Docs (Swagger) | http://localhost:8000/docs                    | Interactive API documentation              |
+Open a second terminal:
 
----
+```powershell
+cd D:\resumes\projects\crowd-resq\frontend
+npm install
+```
 
-## Summary — What to Run (3 Terminals)
+Create `frontend/.env`:
 
-| Terminal | Directory                                     | Command                                                         |
-| -------- | --------------------------------------------- | --------------------------------------------------------------- |
-| 1        | `crowd-management-/`                          | `pnpm dev`                                                      |
-| 2        | `backend-final/crowd-management-small-model/` | `python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload` |
-| 3        | `backend-final/crowd-management-small-model/` | `python y_h_A.py`                                               |
+```env
+DB_URL=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/crowdResqDB
+JWT_SECRET=change-this-secret
+NEXT_PUBLIC_CROWD_API=http://localhost:8000
+```
 
----
+If you open the frontend through your LAN IP, use the backend LAN URL too:
+
+```env
+NEXT_PUBLIC_CROWD_API=http://192.168.43.31:8000
+```
+
+Start the frontend:
+
+```powershell
+npm.cmd run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+## 3. Test The App
+
+1. Open `http://localhost:3000/signup`.
+2. Create an authority account.
+3. Sign in.
+4. You should land on `http://localhost:3000/dashboard/control`.
+5. Enter a camera source in the processed feed panel.
+   - Laptop webcam: `0`
+   - Second/virtual camera: `1`
+   - IP camera stream URL: `http://PHONE_IP:PORT/video`
+6. Press **Start** in the processed feed panel.
+7. The raw and processed feeds should appear.
+
+## 3A. Use Iriun Phone Camera
+
+Iriun works by turning your phone into a virtual webcam on your laptop.
+
+1. Install **Iriun Webcam** on your phone.
+2. Install **Iriun Webcam for Windows** on your laptop.
+3. Connect phone and laptop to the same Wi-Fi/hotspot.
+4. Open Iriun on the phone.
+5. Open Iriun on the laptop and wait until it shows the phone camera preview.
+6. Start the CrowdResQ backend and frontend.
+7. In the dashboard camera source field, try:
+   - `0`
+   - if that opens the laptop webcam instead, press **Stop**, enter `1`, then press **Start**
+   - if needed, repeat with `2`
+
+OpenCV camera indexes depend on your laptop, so Iriun may be `0`, `1`, or `2`.
+
+If Iriun does not appear:
+
+1. Close Zoom/Meet/Teams/Camera app.
+2. Restart the Iriun phone app and Windows app.
+3. Restart the FastAPI backend.
+4. Open `http://localhost:8000/cameras/probe` to see which OpenCV camera indexes are available.
+5. Try an available `source` value from the probe result.
+
+Example probe result:
+
+```json
+{
+  "items": [
+    { "source": 0, "available": false, "backend": "unavailable" },
+    { "source": 1, "available": true, "backend": "dshow", "width": 1280, "height": 720 }
+  ]
+}
+```
+
+In this example, use `1` in the dashboard camera source field.
+
+## 4. Configure The Scene
+
+Use the raw feed panel:
+
+1. Select **Calibration**.
+2. Click 4 floor corners around the monitored event-ground area.
+3. Select **Entry** and click one or more entry points.
+4. Select **Exit** and click one or more exit points.
+5. The backend saves these points in `backend/data/scene_config.json`.
+
+## 5. Verify Risk And Alerts
+
+Watch the right side of the dashboard:
+
+- `Stampede Risk`
+- `People`
+- `Max density`
+- `Avg speed`
+- `Exit Status`
+- `Risk Trend`
+- `Automatic Alerts`
+
+Alerts are generated when the backend risk level reaches `HIGH` or `CRITICAL`.
+
+## Useful Backend Endpoints
+
+```text
+GET  /health
+GET  /cameras/probe
+POST /start
+POST /stop
+GET  /latest
+GET  /stream/raw.mjpg
+GET  /stream/processed.mjpg
+GET  /scene/config
+POST /scene/config
+GET  /alerts
+WS   /ws/risk
+```
 
 ## Troubleshooting
 
-| Problem                                          | Solution                                                                           |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------- | ------------------------------------------ |
-| `Could not import module "app.py"`               | Remove `.py` → use `app:app` not `app.py:app`                                      |
-| `Could not import module "app"`                  | Make sure terminal is in `backend-final/crowd-management-small-model/`             |
-| `ModuleNotFoundError: No module named 'fastapi'` | Run `pip install fastapi uvicorn python-multipart ultralytics opencv-python numpy` |
-| YOLO backend not reachable from frontend         | Ensure FastAPI is running on port 8000                                             |
-| CORS error in browser console                    | Backend allows `http://localhost:3000` — ensure frontend runs on port 3000         |
-| Video feed shows black / nothing                 | Make sure `y_h_A.py` is running and writing to `output/` folder                    |
-| Webcam busy / not found                          | Close other apps using the camera; use a video file instead (option 2)             |
-| MongoDB connection error                         | Check `DB_URL` in `.env` — ensure Atlas cluster is accessible                      |
-| Port 8000 already in use                         | Kill the old process: `netstat -ano                                                | findstr :8000`then`taskkill /PID <pid> /F` |
+| Problem | Fix |
+| --- | --- |
+| Backend not reachable | Make sure Uvicorn is running on port 8000 |
+| CORS error from LAN IP | Restart the backend after pulling this change, and set `NEXT_PUBLIC_CROWD_API` to your machine IP, for example `http://192.168.43.31:8000` |
+| Frontend cannot sign in | Check `DB_URL` and `JWT_SECRET` in `frontend/.env` |
+| Camera does not start | Close other apps using the webcam |
+| `Unsupported upgrade request` for WebSocket | Run `pip install -r requirements.txt`, then restart the backend |
+| Old YOLOv5 compatibility error | The backend no longer uses `backend/yolov5s.pt`; restart the backend and let Ultralytics use `yolo26n.pt`, or set `CROWD_MODEL` to another compatible model |
+| PowerShell blocks npm | Use `npm.cmd run dev` instead of `npm run dev` |
+| Port already in use | Stop the old process or use another port |
