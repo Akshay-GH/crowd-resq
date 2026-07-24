@@ -5,7 +5,7 @@ node_modules/
 .next/
 output/
 pnpm-lock.yaml
-*.mp4
+frontend/public
 *.pt
 .env
 PROJECT_BREAKDOWN.md
