@@ -172,7 +172,7 @@ export default function ControlDashboard() {
       ...sceneConfig.exit_points.map((p) => ({ ...p, kind: "exit" as const })),
     ],
     [sceneConfig],
-  );
+  ); 
 
   const fetchSceneConfig = useCallback(async () => {
     try {

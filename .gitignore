@@ -8,3 +8,5 @@ pnpm-lock.yaml
 *.mp4
 *.pt
 .env
+PROJECT_BREAKDOWN.md
+.agents

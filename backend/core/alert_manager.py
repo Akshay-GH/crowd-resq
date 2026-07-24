@@ -9,6 +9,7 @@ class AlertManager:
     def __init__(self, path: str, cooldown_seconds: int = 20):
         self.path = path
         self.cooldown_seconds = cooldown_seconds
+
         self._lock = threading.Lock()
         self._last_alert_at = 0.0
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -20,11 +21,11 @@ class AlertManager:
             return self._read()
 
     def create_alert(self, risk: Dict[str, Any], reason: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        
         now = time.time()
         if risk.get("risk_level") not in {"HIGH", "CRITICAL"}:
             return None
-        if now - self._last_alert_at < self.cooldown_seconds:
-            return None
+          
 
         alert = {
             "id": f"alert_{int(now)}",
@@ -41,6 +42,8 @@ class AlertManager:
         }
 
         with self._lock:
+            if now - self._last_alert_at < self.cooldown_seconds:
+                          return None
             alerts = self._read()
             alerts.insert(0, alert)
             self._write(alerts[:100])
@@ -64,6 +67,8 @@ class AlertManager:
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 
-    def _write(self, alerts: List[Dict[str, Any]]) -> None:
-        with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(alerts, f, indent=2)
+    def _write(self, alerts):
+      tmp = self.path + ".tmp"
+      with open(tmp, "w", encoding="utf-8") as f:
+          json.dump(alerts, f, indent=2)
+      os.replace(tmp, self.path)

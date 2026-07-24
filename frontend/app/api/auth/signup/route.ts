@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email:email });
     if (existingUser) {
       return NextResponse.json(
         { message: "User already exists" },
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
 
     // Password is hashed automatically by the pre-save hook in the User model
-    const user = new User({ name, email, password, role });
+    const user = new User({ name:name, email:email, password:password, role:role });
     await user.save();
 
     return NextResponse.json(
