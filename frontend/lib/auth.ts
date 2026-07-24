@@ -13,7 +13,7 @@ export function verifyToken(token: string): any {
   return jwt.verify(token, JWT_SECRET);
 }
 
-/** Extract and verify the JWT from the auth-token cookie */
+
 export async function getAuthUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;

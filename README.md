@@ -7,9 +7,9 @@ CrowdResQ is a local AI-assisted event crowd monitoring system. It reads a fixed
 ![Signin](demo/signin.png)
 ![Signup](demo/signup.png)
 
-## Demo
+## 🎥 Demo
 
-<video src="demo/Screen%20Recording%202026-06-01%20020151.mp4" controls></video>
+▶ **Full Demo:** [click](demo/demoVideo.mp4)
 
 ## What It Does
 

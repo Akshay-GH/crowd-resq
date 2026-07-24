@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find user by email
+    
     const user = await User.findOne({ email });
     if (!user) {
       return NextResponse.json(
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check password
+    
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return NextResponse.json(
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate JWT token
+    
     const token = generateToken({
       id: user._id,
       email: user.email,
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       name: user.name,
     });
 
-    // Create the response with user data
+    
     const response = NextResponse.json(
       {
         message: 'Login successful',
@@ -56,16 +56,17 @@ export async function POST(request: Request) {
       { status: 200 }
     );
 
-    // Set HTTP-only cookie with the JWT token
+    
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: 60 * 60 * 24, 
       path: '/',
     });
 
     return response;
+    
   } catch (error) {
     console.error('Signin error:', error);
     return NextResponse.json(
