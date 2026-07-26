@@ -16,6 +16,7 @@ from core.scene_config import SceneConfigStore
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 MODEL_NAME = os.getenv("CROWD_MODEL", "yolo26n.pt")
+DEFAULT_CAMERA_SOURCE = os.getenv("CAMERA_SOURCE", "0")
 
 scene_store = SceneConfigStore(os.path.join(DATA_DIR, "scene_config.json"))
 alert_manager = AlertManager(os.path.join(DATA_DIR, "alerts.json"))
@@ -25,7 +26,10 @@ app = FastAPI(title="CrowdResQ Stampede Risk Backend", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):3000$",
+    allow_origins=[
+        "http://localhost:3000",
+        "https://crowdresq-controlroom.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,7 +51,14 @@ class SceneConfigBody(BaseModel):
 
 
 class StartBody(BaseModel):
-    source: Optional[Union[int, str]] = 0
+    source: Optional[Union[int, str]] = None
+
+
+def _normalize_camera_source(source: Optional[Union[int, str]]) -> Union[int, str]:
+    selected_source: Union[int, str] = source if source is not None else DEFAULT_CAMERA_SOURCE
+    if isinstance(selected_source, str) and selected_source.strip().isdigit():
+        return int(selected_source)
+    return selected_source
 
 
 def _point_dict(point: Point) -> Dict[str, Any]:
@@ -79,8 +90,14 @@ def health():
         "ok": True,
         "running": camera_worker.running,
         "model": MODEL_NAME,
+        "default_camera_source": DEFAULT_CAMERA_SOURCE,
         "latest": camera_worker.latest_risk(),
     }
+
+
+@app.get("/camera/default-source")
+def default_camera_source():
+    return {"source": DEFAULT_CAMERA_SOURCE}
 
 
 @app.get("/cameras/probe")
@@ -90,7 +107,7 @@ def probe_cameras(max_index: int = 8):
 
 @app.post("/start")
 def start(body: StartBody = StartBody()):
-    return camera_worker.start(body.source if body.source is not None else 0)
+    return camera_worker.start(_normalize_camera_source(body.source))
 
 
 @app.post("/stop")

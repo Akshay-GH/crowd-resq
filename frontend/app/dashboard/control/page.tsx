@@ -157,7 +157,7 @@ export default function ControlDashboard() {
   const [imageSize, setImageSize] = useState({ width: 1280, height: 720 });
   const [statusMessage, setStatusMessage] = useState("");
 
-  const [cameraSource, setCameraSource] = useState("0");
+  const [cameraSource, setCameraSource] = useState("");
 
   const allPoints = useMemo(
     () => [
@@ -266,14 +266,18 @@ export default function ControlDashboard() {
   const startBackend = async () => {
     setStatusMessage("");
     const parsedSource = cameraSource.trim();
-    const source = /^\d+$/.test(parsedSource)
-      ? Number(parsedSource)
-      : parsedSource;
+    const body = parsedSource
+      ? {
+          source: /^\d+$/.test(parsedSource)
+            ? Number(parsedSource)
+            : parsedSource,
+        }
+      : {};
 
     const res = await fetch(`${apiBase}/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       setStatusMessage("Could not start camera worker.");
