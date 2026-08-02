@@ -6,13 +6,14 @@
 - Python 3.10 or 3.11
 - MongoDB connection string, local or Atlas
 - A webcam or fixed USB/IP camera available to OpenCV
+- PowerShell on Windows, or an equivalent terminal
 
 ## 1. Backend Setup
 
 Open a terminal:
 
 ```powershell
-cd D:\resumes\projects\crowd-resq\backend
+cd D:\placement\resumes\projects\crowd-resq\backend
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -27,7 +28,17 @@ pip install -r requirements.txt
 
 This installs the WebSocket support needed by `/ws/risk`.
 
-The backend uses `yolo26n.pt` by default. The first detection run may download the model once through Ultralytics. To choose another compatible Ultralytics model, set `CROWD_MODEL` before starting the backend:
+The backend reads optional settings from environment variables:
+
+| Variable | Default | Used for |
+| --- | --- | --- |
+| `CROWD_MODEL` | `yolo26n.pt` | Ultralytics model weights passed to `YOLO(...)` |
+| `CAMERA_SOURCE` | `0` | Default camera source when the dashboard starts the worker without a source |
+| `CROWD_CONF` | `0.25` | YOLO confidence threshold |
+| `CROWD_IOU` | `0.6` | YOLO IOU threshold |
+| `CROWD_IMGSZ` | `1280` | YOLO image size |
+
+The first detection run may download model weights once through Ultralytics. To choose another compatible Ultralytics model, set `CROWD_MODEL` before starting the backend:
 
 ```powershell
 $env:CROWD_MODEL="yolo11n.pt"
@@ -55,17 +66,19 @@ Expected `/health` before starting the camera:
 Open a second terminal:
 
 ```powershell
-cd D:\resumes\projects\crowd-resq\frontend
+cd D:\placement\resumes\projects\crowd-resq\frontend
 npm install
 ```
 
-Create `frontend/.env`:
+Create `frontend/.env` from `frontend/.env.example`:
 
 ```env
 DB_URL=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/crowdResqDB
 JWT_SECRET=change-this-secret
 NEXT_PUBLIC_CROWD_API=http://localhost:8000
 ```
+
+`DB_URL` is used by `frontend/lib/db.ts`, `JWT_SECRET` is used by `frontend/lib/auth.ts`, and `NEXT_PUBLIC_CROWD_API` is used by the control dashboard to call the FastAPI backend.
 
 If you open the frontend through your LAN IP, use the backend LAN URL too:
 
@@ -91,12 +104,12 @@ http://localhost:3000
 2. Create an authority account.
 3. Sign in.
 4. You should land on `http://localhost:3000/dashboard/control`.
-5. Enter a camera source in the processed feed panel.
+5. Enter a camera source in the processed feed panel, or leave it blank to use the backend `CAMERA_SOURCE` default.
    - Laptop webcam: `0`
    - Second/virtual camera: `1`
    - IP camera stream URL: `http://PHONE_IP:PORT/video`
 6. Press **Start** in the processed feed panel.
-7. The raw and processed feeds should appear.
+7. The raw and processed feeds should appear, and the dashboard should receive risk updates from `ws://localhost:8000/ws/risk`.
 
 ## 3A. Use Iriun Phone Camera
 
@@ -160,19 +173,34 @@ Watch the right side of the dashboard:
 
 Alerts are generated when the backend risk level reaches `HIGH` or `CRITICAL`.
 
+Stored data:
+
+| Data | Location |
+| --- | --- |
+| Authority users | MongoDB collection managed by the Mongoose `User` model |
+| JWT session | HTTP-only `auth-token` cookie |
+| Calibration, entry points, exit points, thresholds | `backend/data/scene_config.json` |
+| Generated alerts | `backend/data/alerts.json` |
+
 ## Useful Backend Endpoints
 
 ```text
 GET  /health
+GET  /camera/default-source
 GET  /cameras/probe
 POST /start
 POST /stop
 GET  /latest
+GET  /risk/latest
 GET  /stream/raw.mjpg
 GET  /stream/processed.mjpg
 GET  /scene/config
 POST /scene/config
+POST /scene/calibration
+POST /scene/entry-points
+POST /scene/exit-points
 GET  /alerts
+POST /alerts/{alert_id}/ack
 WS   /ws/risk
 ```
 
