@@ -142,6 +142,7 @@ export default function ControlDashboard() {
   const apiBase = useMemo(resolveApiBase, []);
   const rawImageRef = useRef<HTMLImageElement | null>(null);
   const [user, setUser] = useState<{ name: string } | null>(null);
+  const [token, setToken] = useState<string>("");
   const [backendRunning, setBackendRunning] = useState(false);
   const [risk, setRisk] = useState<RiskPayload>(EMPTY_RISK);
   const [riskHistory, setRiskHistory] = useState<
@@ -188,15 +189,22 @@ export default function ControlDashboard() {
     }
   }, [apiBase]);
 
-  const fetchAlerts = useCallback(async () => {
-    try {
-      const res = await fetch(`${apiBase}/alerts`);
-      const data = await res.json();
-      setAlerts(data.items ?? []);
-    } catch {
-      setStatusMessage("Could not load alerts from " + apiBase);
-    }
-  }, [apiBase]);
+  const fetchAlerts = useCallback(
+    async (authToken?: string) => {
+      const activeToken = authToken || token;
+      if (!activeToken) return;
+      try {
+        const res = await fetch(`${apiBase}/alerts`, {
+          headers: { Authorization: `Bearer ${activeToken}` },
+        });
+        const data = await res.json();
+        setAlerts(data.items ?? []);
+      } catch {
+        setStatusMessage("Could not load alerts from " + apiBase);
+      }
+    },
+    [apiBase, token],
+  );
 
   const updateRisk = useCallback((payload: RiskPayload) => {
     setRisk(payload);
@@ -229,13 +237,16 @@ export default function ControlDashboard() {
         }
         const auth = await authRes.json();
         setUser(auth.user);
+        setToken(auth.token || "");
 
         const healthRes = await fetch(`${apiBase}/health`);
         const health = await healthRes.json();
         setBackendRunning(Boolean(health.running));
         updateRisk(health.latest ?? EMPTY_RISK);
         await fetchSceneConfig();
-        await fetchAlerts();
+        if (auth.token) {
+          await fetchAlerts(auth.token);
+        }
       } catch {
         setStatusMessage("Backend is not reachable at " + apiBase);
       }
@@ -245,7 +256,8 @@ export default function ControlDashboard() {
   }, [apiBase, fetchAlerts, fetchSceneConfig, router, updateRisk]);
 
   useEffect(() => {
-    const wsUrl = apiBase.replace(/^http/, "ws") + "/ws/risk";
+    if (!token) return;
+    const wsUrl = `${apiBase.replace(/^http/, "ws")}/ws/risk?token=${encodeURIComponent(token)}`;
     const socket = new WebSocket(wsUrl);
 
     socket.onmessage = (event) => {
@@ -255,13 +267,13 @@ export default function ControlDashboard() {
       setStatusMessage("Live risk socket disconnected.");
     };
 
-    const alertTimer = window.setInterval(fetchAlerts, 5000);
+    const alertTimer = window.setInterval(() => fetchAlerts(), 5000);
 
     return () => {
       socket.close();
       window.clearInterval(alertTimer);
     };
-  }, [apiBase, fetchAlerts, updateRisk]);
+  }, [apiBase, fetchAlerts, token, updateRisk]);
 
   const startBackend = async () => {
     setStatusMessage("");
@@ -276,7 +288,10 @@ export default function ControlDashboard() {
 
     const res = await fetch(`${apiBase}/start`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -287,14 +302,20 @@ export default function ControlDashboard() {
   };
 
   const stopBackend = async () => {
-    await fetch(`${apiBase}/stop`, { method: "POST" });
+    await fetch(`${apiBase}/stop`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
     setBackendRunning(false);
   };
 
   const saveSceneConfig = async (nextConfig: SceneConfig) => {
     const res = await fetch(`${apiBase}/scene/config`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(nextConfig),
     });
     if (!res.ok) {
@@ -339,7 +360,10 @@ export default function ControlDashboard() {
   };
 
   const acknowledgeAlert = async (id: string) => {
-    await fetch(`${apiBase}/alerts/${id}/ack`, { method: "POST" });
+    await fetch(`${apiBase}/alerts/${id}/ack`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
     await fetchAlerts();
   };
 
@@ -405,24 +429,30 @@ export default function ControlDashboard() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div
-                  className="relative aspect-video overflow-hidden rounded-md bg-black"
+                  className="relative flex aspect-video items-center justify-center overflow-hidden rounded-md bg-black"
                   onClick={handleFeedClick}
                 >
-                  <img
-                    ref={rawImageRef}
-                    src={`${apiBase}/stream/raw.mjpg`}
-                    alt="Raw live camera feed"
-                    className="h-full w-full object-contain"
-                    onLoad={(event) => {
-                      const img = event.currentTarget;
-                      if (img.naturalWidth && img.naturalHeight) {
-                        setImageSize({
-                          width: img.naturalWidth,
-                          height: img.naturalHeight,
-                        });
-                      }
-                    }}
-                  />
+                  {backendRunning ? (
+                    <img
+                      ref={rawImageRef}
+                      src={`${apiBase}/stream/raw.mjpg`}
+                      alt="Raw live camera feed"
+                      className="h-full w-full object-contain"
+                      onLoad={(event) => {
+                        const img = event.currentTarget;
+                        if (img.naturalWidth && img.naturalHeight) {
+                          setImageSize({
+                            width: img.naturalWidth,
+                            height: img.naturalHeight,
+                          });
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span className="text-sm text-neutral-500">
+                      Camera feed stopped
+                    </span>
+                  )}
                   {allPoints.map((point) => (
                     <PointMarker
                       key={`${point.kind}-${point.id}`}
@@ -469,12 +499,18 @@ export default function ControlDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="aspect-video overflow-hidden rounded-md bg-black">
-                  <img
-                    src={`${apiBase}/stream/processed.mjpg`}
-                    alt="Processed feed with crowd heatmap"
-                    className="h-full w-full object-contain"
-                  />
+                <div className="flex aspect-video items-center justify-center overflow-hidden rounded-md bg-black">
+                  {backendRunning ? (
+                    <img
+                      src={`${apiBase}/stream/processed.mjpg`}
+                      alt="Processed feed with crowd heatmap"
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-sm text-neutral-500">
+                      Processed feed stopped
+                    </span>
+                  )}
                 </div>
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                   <Input

@@ -1,22 +1,28 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
 const CONTROL_DASHBOARD = "/dashboard/control";
 const PROTECTED_PATHS = [CONTROL_DASHBOARD];
 const AUTH_PAGES = ["/signin", "/signup"];
+const COOKIE_NAME = "auth-token";
 
-function hasReadableToken(token: string) {
+const JWT_SECRET_KEY = new TextEncoder().encode(
+  process.env.JWT_SECRET || "fallback-secret-change-me"
+);
+
+async function isValidToken(token: string): Promise<boolean> {
   try {
-    JSON.parse(Buffer.from(token.split(".")[1], "base64").toString());
+    await jwtVerify(token, JWT_SECRET_KEY);
     return true;
   } catch {
     return false;
   }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get("auth-token")?.value;
+  const token = request.cookies.get(COOKIE_NAME)?.value;
   const isProtectedPath = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
   const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p));
 
@@ -24,15 +30,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(CONTROL_DASHBOARD, request.url));
   }
 
-  if (isProtectedPath) {
-    if (!token || !hasReadableToken(token)) {
-      const response = NextResponse.redirect(new URL("/signin", request.url));
-      response.cookies.delete("auth-token");
-      return response;
-    }
+  const validToken = token ? await isValidToken(token) : false;
+
+  if (isProtectedPath && !validToken) {
+    const response = NextResponse.redirect(new URL("/signin", request.url));
+    response.cookies.delete(COOKIE_NAME);
+    return response;
   }
 
-  if (isAuthPage && token && hasReadableToken(token)) {
+  if (isAuthPage && validToken) {
     return NextResponse.redirect(new URL(CONTROL_DASHBOARD, request.url));
   }
 
@@ -42,3 +48,4 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/dashboard/:path*", "/signin", "/signup"],
 };
+
