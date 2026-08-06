@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { getAuthUser, COOKIE_NAME } from '@/lib/auth';
 
 export async function GET() {
   try {
     const user = await getAuthUser();
+    const cookieStore = await cookies();
+    const token = cookieStore.get(COOKIE_NAME)?.value;
 
-    if (!user) {
+    if (!user || !token) {
       return NextResponse.json(
         { message: 'Not authenticated' },
         { status: 401 }
@@ -13,6 +16,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      token,
       user: {
         id: user.id,
         name: user.name,

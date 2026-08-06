@@ -3,9 +3,19 @@ import os
 import time
 from typing import Any, Dict, List, Optional, Union
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+import jwt
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
 from core.alert_manager import AlertManager
@@ -14,13 +24,50 @@ from core.scene_config import SceneConfigStore
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
+    load_dotenv(os.path.join(BASE_DIR, "..", "frontend", ".env"))
+except ImportError:
+    pass
+
 DATA_DIR = os.path.join(BASE_DIR, "data")
 MODEL_NAME = os.getenv("CROWD_MODEL", "yolo26n.pt")
 DEFAULT_CAMERA_SOURCE = os.getenv("CAMERA_SOURCE", "0")
+JWT_SECRET = os.getenv("JWT_SECRET", "fallback-secret-change-me")
 
 scene_store = SceneConfigStore(os.path.join(DATA_DIR, "scene_config.json"))
 alert_manager = AlertManager(os.path.join(DATA_DIR, "alerts.json"))
 camera_worker = CameraWorker(scene_store, alert_manager, MODEL_NAME)
+
+security_bearer = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
+    token: Optional[str] = Query(None),
+) -> Dict[str, Any]:
+    raw_token = credentials.credentials if credentials else token
+    if not raw_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authentication token",
+        )
+    try:
+        payload = jwt.decode(raw_token, JWT_SECRET, algorithms=["HS256"])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
+        )
+
 
 app = FastAPI(title="CrowdResQ Stampede Risk Backend", version="1.0.0")
 
@@ -28,8 +75,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://127.0.0.1:3000",
         "https://crowdresq-controlroom.vercel.app",
     ],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,11 +118,21 @@ def _point_dict(point: Point) -> Dict[str, Any]:
 
 def _mjpeg_generator(processed: bool = True):
     boundary = "frame"
+    idle_cycles = 0
     while True:
+        if not camera_worker.running:
+            idle_cycles += 1
+            if idle_cycles > 30:  # Exit stream after ~3s when camera is stopped
+                break
+            time.sleep(0.1)
+            continue
+
         frame = camera_worker.latest_jpeg(processed=processed)
         if frame is None:
             time.sleep(0.05)
             continue
+
+        idle_cycles = 0
         yield (
             b"--" + boundary.encode() + b"\r\n"
             b"Content-Type: image/jpeg\r\n"
@@ -106,12 +165,15 @@ def probe_cameras(max_index: int = 8):
 
 
 @app.post("/start")
-def start(body: StartBody = StartBody()):
+def start(
+    body: StartBody = StartBody(),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     return camera_worker.start(_normalize_camera_source(body.source))
 
 
 @app.post("/stop")
-def stop():
+def stop(current_user: Dict[str, Any] = Depends(get_current_user)):
     return camera_worker.stop()
 
 
@@ -141,7 +203,10 @@ def get_scene_config():
 
 
 @app.post("/scene/config")
-def update_scene_config(body: SceneConfigBody):
+def update_scene_config(
+    body: SceneConfigBody,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     patch: Dict[str, Any] = {}
     if body.calibration_points is not None:
         if len(body.calibration_points) > 4:
@@ -157,29 +222,41 @@ def update_scene_config(body: SceneConfigBody):
 
 
 @app.post("/scene/calibration")
-def set_calibration(points: List[Point]):
+def set_calibration(
+    points: List[Point],
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     if len(points) != 4:
         raise HTTPException(status_code=400, detail="Calibration requires exactly 4 points.")
     return scene_store.update({"calibration_points": [_point_dict(p) for p in points]})
 
 
 @app.post("/scene/entry-points")
-def set_entry_points(points: List[Point]):
+def set_entry_points(
+    points: List[Point],
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     return scene_store.update({"entry_points": [_point_dict(p) for p in points]})
 
 
 @app.post("/scene/exit-points")
-def set_exit_points(points: List[Point]):
+def set_exit_points(
+    points: List[Point],
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     return scene_store.update({"exit_points": [_point_dict(p) for p in points]})
 
 
 @app.get("/alerts")
-def get_alerts():
+def get_alerts(current_user: Dict[str, Any] = Depends(get_current_user)):
     return {"items": alert_manager.list_alerts()}
 
 
 @app.post("/alerts/{alert_id}/ack")
-def acknowledge_alert(alert_id: str):
+def acknowledge_alert(
+    alert_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     alert = alert_manager.acknowledge(alert_id)
     if alert is None:
         raise HTTPException(status_code=404, detail="Alert not found.")
@@ -187,7 +264,16 @@ def acknowledge_alert(alert_id: str):
 
 
 @app.websocket("/ws/risk")
-async def risk_socket(websocket: WebSocket):
+async def risk_socket(websocket: WebSocket, token: Optional[str] = Query(None)):
+    if not token:
+        await websocket.close(code=4001, reason="Missing token")
+        return
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except Exception:
+        await websocket.close(code=4008, reason="Invalid token")
+        return
+
     await websocket.accept()
     try:
         while True:
